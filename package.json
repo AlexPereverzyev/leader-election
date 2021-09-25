@@ -1,0 +1,53 @@
+{
+  "name": "multitude",
+  "version": "0.1.0",
+  "description": "Distributed algorithms for Node.js",
+  "main": "index.js",
+  "author": "Alex Pereverzyev",
+  "license": "MIT",
+  "keywords": [
+    "JavaScript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://www.example.com"
+  },
+  "scripts": {
+    "format": "prettier --write 'src/**/*.js' 'test/**/*.js'",
+    "lint": "eslint . --ext .js",
+    "test": "npm run lint && npm run coverage",
+    "coverage": "nyc mocha",
+    "debug": "DEBUG=* node index.js",
+    "start": "node src/index.js",
+    "watch": "nodemon --config .nodemon.json",
+    "stats": "sloc src/ -f cli-table -k total,source,comment"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run format && git update-index --again",
+      "pre-push": "npm test"
+    }
+  },
+  "dependencies": {
+    "glob": "^7.1.6"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "eslint": "^7.6.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-plugin-chai-friendly": "^0.6.0",
+    "eslint-plugin-import": "^2.22.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "husky": "^4.2.5",
+    "mocha": "^8.1.1",
+    "nodemon": "^2.0.4",
+    "nyc": "^15.1.0",
+    "prettier": "^2.0.5",
+    "sinon": "^9.0.2",
+    "sloc": "^0.2.1"
+  }
+}
