@@ -74,8 +74,6 @@ class Message {
 const Messages = {
     Hello: 1,
     Bye: 2,
-    Ping: 3,
-    Pong: 4,
     Data: 11,
 };
 

@@ -2,18 +2,15 @@
 
 const net = require('net');
 const { current: log } = require('./logger');
+const { SessionState } = require('./session_state');
 const { Mesh } = require('./mesh');
 
 const peerName = parseInt(process.argv[2] || 0);
 const peerNetwork = require('./peers.json');
 const peerCurrent = peerNetwork[peerName];
 const peerAddress = peerCurrent.address.split(':');
-
-// todo: track sessions
-// const { Session } = require('./session');
-// const peerSessions = new Session()
-
-const peerMesh = new Mesh(peerName, peerNetwork);
+const peerSessions = new SessionState();
+const peerMesh = new Mesh(peerName, peerNetwork, peerSessions);
 
 const server = net
     .createServer((socket) => {

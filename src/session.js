@@ -1,46 +1,40 @@
 'use strict';
 
+// todo: add socket close routines and update mesh
+
 class Session {
     constructor() {
-        this.sessions = new Map();
+        this.ready = false;
+        this.closed = false;
+        this.outboundSock = null;
+        this.outboundBuffer = Buffer.alloc(0);
+        this.inboundSock = null;
+        this.inboundBuffer = Buffer.alloc(0);
     }
 
-    startSession(peer) {
-        let peerSession = this.sessions.get(peer.name);
-        if (peerSession) {
-            return peerSession;
-        }
-
-        peerSession = {
-            ready: false,
-            closed: false,
-            outbound: null,
-            inbound: null,
-            inboundBuffer: Buffer.alloc(0),
-        };
-
-        this.sessions.set(peer.name, peerSession);
-        return peerSession;
+    get inbound() {
+        return this.inboundSock;
     }
 
-    stopSession(peer) {
-        const peerSession = this.sessions.get(peer.name);
-        if (!peerSession) {
-            return;
-        }
-        if (peerSession.closed) {
-            return;
-        }
+    set inbound(socket) {
+        this.inboundSock = socket;
+        this.ready = this.inboundSock && this.outboundSock;
 
-        peerSession.closed = true;
-
-        if (peerSession.inbound) {
-            // todo: close socket
-            peerSession.inboundBuffer = Buffer.alloc(0);
+        if (!socket) {
+            this.inboundBuffer = Buffer.alloc(0);
         }
+    }
 
-        if (peerSession.outbound) {
-            // todo: close socket
+    get outbound() {
+        return this.outboundSock;
+    }
+
+    set outbound(socket) {
+        this.outboundSock = socket;
+        this.ready = this.inboundSock && this.outboundSock;
+
+        if (!socket) {
+            this.outboundBuffer = Buffer.alloc(0);
         }
     }
 }

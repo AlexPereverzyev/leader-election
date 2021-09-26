@@ -22,7 +22,7 @@ class Logger {
         const con = (context && context.id) || '*';
         const ctx = (context && context.peer) || context || {};
         const src = ctx.name !== undefined ? ctx.name : '?';
-        return `${LogLevelNames[level]}[${now}]${con}|${src}| ${message}`;
+        return `[${now}]${LogLevelNames[level]}:${con}-${src}: ${message}`;
     }
 }
 

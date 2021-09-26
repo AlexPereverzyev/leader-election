@@ -8,9 +8,10 @@ const { Message, Messages } = require('./parser');
 const PeerReconnectDelay = 1000; // 1 sec
 
 class Mesh {
-    constructor(name, peers) {
+    constructor(name, peers, sessions) {
         this.peerName = name;
         this.peers = peers;
+        this.sessions = sessions;
     }
 
     accept(socket) {
@@ -22,7 +23,7 @@ class Mesh {
                 log.error(`Peer connection failed: ${err.message}`, socket);
 
                 socket.end();
-                // todo: clear inbound session
+                this.sessions.start(socket.peer).inbound = null;
 
                 setImmediate(() => {
                     socket.removeAllListeners();
@@ -33,17 +34,24 @@ class Mesh {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                // todo: clear inbound session
+                this.sessions.start(socket.peer).inbound = null;
 
                 setImmediate(() => {
                     socket.removeAllListeners();
                 });
             })
             .on('data', (data) => {
-                // todo: concat inboundBuffer and data
+                let session = this.sessions.get(socket.peer);
+                if (session) {
+                    data = session.inboundBuffer.concat(data);
+                }
 
                 const msg = Message.parse(data);
+                if (!msg && !session) {
+                    return;
+                }
                 if (!msg) {
+                    session.inboundBuffer = data;
                     return;
                 }
 
@@ -62,7 +70,14 @@ class Mesh {
                         return;
                     }
 
-                    // todo: set inbound session (handshake)
+                    session = this.sessions.start(socket.peer);
+                    session.inbound = socket;
+                }
+
+                if (msg.tail) {
+                    session.inboundBuffer = msg.tail;
+                } else {
+                    session.inboundBuffer = Buffer.alloc(0);
                 }
 
                 log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
@@ -93,16 +108,13 @@ class Mesh {
                     ),
                 );
 
-                // todo: set outbound session
-
-                // todo: just a test
-                // setImmediate(() => socket.end());
+                this.sessions.start(socket.peer).outbound = socket;
             })
             .on('error', (err) => {
                 log.error(`Connecting peer failed: ${err.message}`, socket);
 
                 socket.end();
-                // todo: clear outbound session
+                this.sessions.start(socket.peer).outbound = null;
 
                 setImmediate(() => {
                     socket.removeAllListeners();
@@ -116,7 +128,7 @@ class Mesh {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                // todo: clear outbound session
+                this.sessions.start(socket.peer).outbound = null;
 
                 setImmediate(() => {
                     socket.removeAllListeners();
@@ -126,9 +138,18 @@ class Mesh {
                 }, PeerReconnectDelay);
             })
             .on('data', (data) => {
+                const session = this.sessions.get(socket.peer).outboundBuffer.concat(data);
+                data = session.outboundBuffer.concat(data);
+
                 const msg = Message.parse(data);
                 if (!msg) {
+                    session.outboundBuffer = data;
                     return;
+                }
+                if (msg.tail) {
+                    session.outboundBuffer = msg.tail;
+                } else {
+                    session.outboundBuffer = Buffer.alloc(0);
                 }
 
                 log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
