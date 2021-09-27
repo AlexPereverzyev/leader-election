@@ -2,14 +2,14 @@
 
 const net = require('net');
 const { current: log } = require('./logger');
-const { SessionState } = require('./session_state');
+const { QuorumState } = require('./quorum_state');
 const { Mesh } = require('./mesh');
 
 const peerName = parseInt(process.argv[2] || 0);
 const peerNetwork = require('./peers.json');
 const peerCurrent = peerNetwork[peerName];
 const peerAddress = peerCurrent.address.split(':');
-const peerSessions = new SessionState();
+const peerSessions = new QuorumState();
 const peerMesh = new Mesh(peerName, peerNetwork, peerSessions);
 
 const server = net

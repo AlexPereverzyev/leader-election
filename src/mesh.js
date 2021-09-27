@@ -32,6 +32,7 @@ class Mesh {
                     socket.removeAllListeners();
                     socket.on('error', function () {});
                     socket.destroy();
+                    socket.peer = null;
                 });
             })
             .on('end', () => {
@@ -44,6 +45,7 @@ class Mesh {
 
                 setImmediate(() => {
                     socket.removeAllListeners();
+                    socket.peer = null;
                 });
             })
             .on('data', (data) => {
@@ -129,6 +131,7 @@ class Mesh {
                     socket.removeAllListeners();
                     socket.on('error', function () {});
                     socket.destroy();
+                    socket.peer = null;
                 });
 
                 setTimeout(() => {
@@ -145,6 +148,7 @@ class Mesh {
 
                 setImmediate(() => {
                     socket.removeAllListeners();
+                    socket.peer = null;
                 });
 
                 setTimeout(() => {
@@ -189,6 +193,7 @@ class Mesh {
                 socket.removeAllListeners();
                 socket.on('error', function () {});
                 socket.destroy();
+                socket.peer = null;
             }
 
             this.sessions.stop(peer);

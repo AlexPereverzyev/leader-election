@@ -2,7 +2,7 @@
 
 const { Session } = require('./session');
 
-class SessionState {
+class QuorumState {
     constructor() {
         this.sessions = new Map();
     }
@@ -43,4 +43,4 @@ class SessionState {
     }
 }
 
-module.exports.SessionState = SessionState;
+module.exports.QuorumState = QuorumState;
