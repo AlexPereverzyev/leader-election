@@ -1,15 +1,13 @@
 'use strict';
 
-// todo: add socket close routines and update mesh
-
 class Session {
     constructor() {
         this.ready = false;
         this.closed = false;
-        this.outboundSock = null;
-        this.outboundBuffer = Buffer.alloc(0);
         this.inboundSock = null;
         this.inboundBuffer = Buffer.alloc(0);
+        this.outboundSock = null;
+        this.outboundBuffer = Buffer.alloc(0);
     }
 
     get inbound() {
@@ -19,8 +17,16 @@ class Session {
     set inbound(socket) {
         this.inboundSock = socket;
         this.ready = this.inboundSock && this.outboundSock;
+    }
 
-        if (!socket) {
+    get inboundBuf() {
+        return this.inboundBuffer;
+    }
+
+    set inboundBuf(buffer) {
+        if (buffer) {
+            this.inboundBuffer = buffer;
+        } else {
             this.inboundBuffer = Buffer.alloc(0);
         }
     }
@@ -34,6 +40,18 @@ class Session {
         this.ready = this.inboundSock && this.outboundSock;
 
         if (!socket) {
+            this.outboundBuffer = Buffer.alloc(0);
+        }
+    }
+
+    get outboundBuf() {
+        return this.outboundBuffer;
+    }
+
+    set outboundBuf(buffer) {
+        if (buffer) {
+            this.outboundBuffer = buffer;
+        } else {
             this.outboundBuffer = Buffer.alloc(0);
         }
     }

@@ -18,17 +18,15 @@ const server = net
     })
     .on('error', (err) => {
         log.error(`Peer failed: ${err.message}`, server);
-        // todo: close all peer sessions
 
+        peerMesh.disconnect();
         server.close();
     })
     .listen(peerAddress[1], peerAddress[0], () => {
         log.info(`Peer started at ${peerAddress}`, server);
         log.info(`Peers known: ${JSON.stringify(peerNetwork)}`, server);
 
-        setImmediate(() => {
-            peerMesh.connect(peerNetwork.filter((p) => p.name !== peerName));
-        });
+        peerMesh.connect();
     });
 
 server.peer = peerCurrent;

@@ -24,6 +24,9 @@ class SessionState {
     }
 
     stop(peer) {
+        if (!peer) {
+            return;
+        }
         const peerSession = this.sessions.get(peer.name);
         if (!peerSession) {
             return;
@@ -32,16 +35,11 @@ class SessionState {
             return;
         }
 
+        this.sessions.delete(peer.name);
+
         peerSession.closed = true;
-
-        if (peerSession.inbound) {
-            // todo: close socket
-            peerSession.inboundBuffer = Buffer.alloc(0);
-        }
-
-        if (peerSession.outbound) {
-            // todo: close socket
-        }
+        peerSession.inbound = null;
+        peerSession.outbound = null;
     }
 }
 
