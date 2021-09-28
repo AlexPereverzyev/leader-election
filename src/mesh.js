@@ -1,14 +1,17 @@
 'use strict';
 
 const net = require('net');
+const EventEmitter = require('events');
+
 const { id } = require('./utils');
 const { current: log } = require('./logger');
 const { Message, Messages } = require('./parser');
 
 const PeerReconnectDelay = 1000; // 1 sec
 
-class Mesh {
+class Mesh extends EventEmitter {
     constructor(name, peers, sessions) {
+        super();
         this.peerName = name;
         this.peers = peers;
         this.sessions = sessions;
@@ -22,10 +25,7 @@ class Mesh {
             .on('error', (err) => {
                 log.error(`Peer connection failed: ${err.message}`, socket);
 
-                const session = this.sessions.get(socket.peer);
-                if (session) {
-                    session.inbound = null;
-                }
+                this.emit('inbound_failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
@@ -38,10 +38,7 @@ class Mesh {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                const session = this.sessions.get(socket.peer);
-                if (session) {
-                    session.inbound = null;
-                }
+                this.emit('inbound_ended', socket.peer);
 
                 setImmediate(() => {
                     socket.removeAllListeners();
@@ -49,7 +46,7 @@ class Mesh {
                 });
             })
             .on('data', (data) => {
-                let session = this.sessions.get(socket.peer);
+                const session = this.sessions.get(socket.peer);
                 if (session) {
                     data = session.inboundBuffer.concat(data);
                 }
@@ -66,7 +63,7 @@ class Mesh {
                     return;
                 }
 
-                // identify peer
+                // handle hello (connect peer)
                 if (!socket.peer) {
                     if (!(msg.type === Messages.Hello && msg.data)) {
                         socket.end();
@@ -81,13 +78,12 @@ class Mesh {
                         return;
                     }
 
-                    session = this.sessions.start(socket.peer);
-                    session.inbound = socket;
+                    this.emit('inbound_started', socket.peer, socket);
                 }
 
-                // todo: handle protocol request
+                // todo: handle bye (disconnect peer)
 
-                session.inboundBuf = msg.tail;
+                this.emit('inbound_message', socket.peer, msg);
             });
     }
 
@@ -116,15 +112,12 @@ class Mesh {
                     ),
                 );
 
-                this.sessions.start(socket.peer).outbound = socket;
+                this.emit('outbound_started', socket.peer, socket);
             })
             .on('error', (err) => {
                 log.error(`Connecting peer failed: ${err.message}`, socket);
 
-                const session = this.sessions.get(socket.peer);
-                if (session) {
-                    session.outbound = null;
-                }
+                this.emit('outbound_failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
@@ -141,10 +134,7 @@ class Mesh {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                const session = this.sessions.get(socket.peer);
-                if (session) {
-                    session.outbound = null;
-                }
+                this.emit('outbound_ended', socket.peer);
 
                 setImmediate(() => {
                     socket.removeAllListeners();
@@ -156,20 +146,18 @@ class Mesh {
                 }, PeerReconnectDelay);
             })
             .on('data', (data) => {
-                const session = this.sessions.get(socket.peer).outboundBuffer.concat(data);
-                data = session.outboundBuffer.concat(data);
+                const session = this.sessions.get(socket.peer);
+                data = session.outboundBuf.concat(data);
 
                 const msg = Message.parse(data);
                 log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
 
                 if (!msg) {
-                    session.outboundBuffer = data;
+                    session.outboundBuf = data;
                     return;
                 }
 
-                // todo: handle protocol response
-
-                session.outboundBuf = msg.tail;
+                this.emit('outbound_message', socket.peer, msg);
             });
 
         socket.id = id();
@@ -189,14 +177,14 @@ class Mesh {
             }
 
             for (const socket of [session.inbound, session.outbound].filter((s) => !!s)) {
-                socket.end();
                 socket.removeAllListeners();
                 socket.on('error', function () {});
+                socket.end();
                 socket.destroy();
                 socket.peer = null;
             }
 
-            this.sessions.stop(peer);
+            this.emit('peer_disconnected', peer);
         }
     }
 }

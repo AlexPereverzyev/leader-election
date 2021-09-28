@@ -1,7 +1,7 @@
 {
-  "name": "multitude",
+  "name": "leader-election",
   "version": "0.1.0",
-  "description": "Distributed algorithms for Node.js",
+  "description": "Distributed leader election algoritms for Node.js",
   "main": "index.js",
   "author": "Alex Pereverzyev",
   "license": "MIT",

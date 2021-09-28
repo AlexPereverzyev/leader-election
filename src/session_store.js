@@ -2,13 +2,13 @@
 
 const { Session } = require('./session');
 
-class QuorumState {
+class SessionStore {
     constructor() {
         this.sessions = new Map();
     }
 
     get(peer) {
-        return peer && peer.name ? this.sessions.get(peer.name) : undefined;
+        return peer && peer.name !== undefined ? this.sessions.get(peer.name) : undefined;
     }
 
     start(peer) {
@@ -43,4 +43,4 @@ class QuorumState {
     }
 }
 
-module.exports.QuorumState = QuorumState;
+module.exports.SessionStore = SessionStore;

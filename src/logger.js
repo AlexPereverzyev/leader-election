@@ -19,10 +19,10 @@ class Logger {
 
     format(message, context, level) {
         const now = timestamp();
-        const con = (context && context.id) || '*';
+        const con = (context && context.id) || '******';
         const ctx = (context && context.peer) || context || {};
         const src = ctx.name !== undefined ? ctx.name : '?';
-        return `[${now}]${LogLevelNames[level]}:${con}-${src}: ${message}`;
+        return `[${now}]${LogLevelNames[level]}|${con}-${src}: ${message}`;
     }
 }
 

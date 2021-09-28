@@ -4,19 +4,19 @@ class Session {
     constructor() {
         this.ready = false;
         this.closed = false;
-        this.inboundSock = null;
+        this.inboundSocket = null;
         this.inboundBuffer = Buffer.alloc(0);
-        this.outboundSock = null;
+        this.outboundSocket = null;
         this.outboundBuffer = Buffer.alloc(0);
     }
 
-    get inbound() {
-        return this.inboundSock;
+    get inboundSock() {
+        return this.inboundSocket;
     }
 
-    set inbound(socket) {
-        this.inboundSock = socket;
-        this.ready = this.inboundSock && this.outboundSock;
+    set inboundSock(socket) {
+        this.inboundSocket = socket;
+        this.ready = this.inboundSocket && this.outboundSocket;
     }
 
     get inboundBuf() {
@@ -31,13 +31,13 @@ class Session {
         }
     }
 
-    get outbound() {
-        return this.outboundSock;
+    get outboundSock() {
+        return this.outboundSocket;
     }
 
-    set outbound(socket) {
-        this.outboundSock = socket;
-        this.ready = this.inboundSock && this.outboundSock;
+    set outboundSock(socket) {
+        this.outboundSocket = socket;
+        this.ready = this.inboundSocket && this.outboundSocket;
 
         if (!socket) {
             this.outboundBuffer = Buffer.alloc(0);
@@ -53,6 +53,19 @@ class Session {
             this.outboundBuffer = buffer;
         } else {
             this.outboundBuffer = Buffer.alloc(0);
+        }
+    }
+
+    send(msg) {
+        if (!this.ready) {
+            return false;
+        }
+        if (this.inboundSocket && this.inboundSocket.writeable) {
+            this.inboundSocket.write(msg);
+            return;
+        }
+        if (this.outboundSocket && this.outboundSocket.writeable) {
+            this.outboundSocket.write(msg);
         }
     }
 }

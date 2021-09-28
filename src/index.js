@@ -1,16 +1,22 @@
 'use strict';
 
 const net = require('net');
+
 const { current: log } = require('./logger');
-const { QuorumState } = require('./quorum_state');
 const { Mesh } = require('./mesh');
+const { BullyElection } = require('./bully');
+const { SessionStore } = require('./session_store');
 
 const peerName = parseInt(process.argv[2] || 0);
 const peerNetwork = require('./peers.json');
 const peerCurrent = peerNetwork[peerName];
 const peerAddress = peerCurrent.address.split(':');
-const peerSessions = new QuorumState();
+
+const peerSessions = new SessionStore();
 const peerMesh = new Mesh(peerName, peerNetwork, peerSessions);
+const peerElection = new BullyElection(peerMesh, peerSessions);
+
+const LeaderElectionDelay = 200;
 
 const server = net
     .createServer((socket) => {
@@ -27,6 +33,7 @@ const server = net
         log.info(`Peers known: ${JSON.stringify(peerNetwork)}`, server);
 
         peerMesh.connect();
+        setTimeout(() => peerElection.start(), LeaderElectionDelay);
     });
 
 server.peer = peerCurrent;
