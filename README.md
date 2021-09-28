@@ -24,5 +24,5 @@ https://www.cs.colostate.edu/%7Ecs551/CourseNotes/Synchronization/RingElectExamp
 - protocol is sequential: no message ids and pipelining
 - message parser is not srteaming: re-scans buffer every time new chunk arrives
 - peers maintain two connections: no need to prune the second one
-- no ping-ponging: node is down when any of the two connections is lost
+- no ping-ponging: peer is down when any of the two connections is lost
 - optimistic message validation
