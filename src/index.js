@@ -28,7 +28,7 @@ const server = net
     })
     .listen(peerAddress[1], peerAddress[0], () => {
         log.info(`Peer started at ${peerAddress}`, server);
-        log.info(`Peers known: ${JSON.stringify(peerNetwork)}`, server);
+        log.info(`Peers known: ${JSON.stringify(peerNetwork.map((p) => p.name))}`, server);
 
         peerMesh.connect();
         peerElection.start();

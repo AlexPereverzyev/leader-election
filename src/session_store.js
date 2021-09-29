@@ -7,6 +7,10 @@ class SessionStore {
         this.sessions = new Map();
     }
 
+    [Symbol.iterator]() {
+        return this.sessions.values();
+    }
+
     get(peer) {
         return peer && peer.name !== undefined ? this.sessions.get(peer.name) : undefined;
     }
@@ -14,10 +18,11 @@ class SessionStore {
     start(peer, socket) {
         let session = this.sessions.get(peer.name);
         if (session) {
+            session.socket = session.socket || socket;
             return session;
         }
 
-        session = new Session();
+        session = new Session(peer);
         session.socket = socket;
 
         this.sessions.set(peer.name, session);

@@ -1,7 +1,8 @@
 'use strict';
 
 class Session {
-    constructor() {
+    constructor(peer) {
+        this.peer = peer;
         this.ready = false;
         this.closed = false;
         this.sock = null;
@@ -15,10 +16,7 @@ class Session {
     set socket(socket) {
         this.sock = socket;
         this.ready = !!this.sock;
-
-        if (!socket) {
-            this.buf = Buffer.alloc(0);
-        }
+        this.buf = Buffer.alloc(0);
     }
 
     get buffer() {
@@ -37,7 +35,7 @@ class Session {
         if (!this.ready) {
             return false;
         }
-        if (this.sock && this.sock.writeable) {
+        if (this.sock && this.sock.writable) {
             return this.sock.write(msg);
         }
         return false;

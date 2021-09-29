@@ -74,7 +74,9 @@ class Message {
 const Messages = {
     Hello: 1,
     Bye: 2,
-    Data: 11,
+    Election: 11,
+    Leader: 12,
+    Data: 21,
 };
 
 Object.keys(Messages).forEach((k) => (Messages[Messages[k]] = k));

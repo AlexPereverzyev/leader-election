@@ -3,7 +3,6 @@
 const net = require('net');
 const EventEmitter = require('events');
 
-const { id } = require('./utils');
 const { current: log } = require('./logger');
 const { Message, Messages } = require('./parser');
 
@@ -18,19 +17,18 @@ class Mesh extends EventEmitter {
     }
 
     accept(socket) {
-        socket.id = id();
         log.info(`Peer connected`, socket);
 
         socket
             .on('error', (err) => {
-                log.error(`Peer connection failed: ${err.message}`, socket);
+                log.error(`Peer connection failed: ${err.message.substr(0, 64)}`, socket);
 
                 this.emit('failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () { });
+                    socket.on('error', function () {});
                     socket.destroy();
                     socket.peer = null;
                 });
@@ -42,16 +40,16 @@ class Mesh extends EventEmitter {
 
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () { });
+                    socket.on('error', function () {});
                     socket.peer = null;
                 });
             })
             .on('data', (data) => {
                 const session = this.sessions.get(socket.peer);
-                data = session ? session.buffer.concat(data) : data;
+                data = session ? Buffer.concat([session.buffer, data]) : data;
 
                 const msg = Message.parse(data);
-                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
+                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data || ''}`, socket);
 
                 // expect hello message to fit in buffer
                 if (!msg && !session) {
@@ -73,6 +71,7 @@ class Mesh extends EventEmitter {
                     socket.peer = this.peers[payload.name];
 
                     this.emit('connected', socket.peer, socket);
+                    return;
                 }
 
                 // handle bye (disconnect peer)
@@ -81,7 +80,6 @@ class Mesh extends EventEmitter {
                     return;
                 }
 
-                // handle data
                 if (!socket.peer) {
                     socket.end();
                     return;
@@ -90,8 +88,7 @@ class Mesh extends EventEmitter {
                 this.sessions.get(socket.peer).buffer = msg.tail;
                 delete msg.tail;
 
-                const payload = JSON.parse(msg.data);
-                this.emit('message', socket.peer, payload);
+                this.emit('message', socket.peer, msg);
             });
     }
 
@@ -124,14 +121,14 @@ class Mesh extends EventEmitter {
                 this.emit('connected', socket.peer, socket);
             })
             .on('error', (err) => {
-                log.error(`Connecting peer failed: ${err.message}`, socket);
+                log.error(`Connecting peer failed: ${err.message.substr(0, 64)}`, socket);
 
                 this.emit('failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () { });
+                    socket.on('error', function () {});
                     socket.destroy();
                     socket.peer = null;
                 });
@@ -147,7 +144,7 @@ class Mesh extends EventEmitter {
 
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () { });
+                    socket.on('error', function () {});
                     socket.peer = null;
                 });
 
@@ -157,10 +154,10 @@ class Mesh extends EventEmitter {
             })
             .on('data', (data) => {
                 const session = this.sessions.get(socket.peer);
-                data = session.buffer.concat(data);
+                data = Buffer.concat([session.buffer, data]);
 
                 const msg = Message.parse(data);
-                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
+                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data || ''}`, socket);
 
                 if (!msg) {
                     session.buffer = data;
@@ -170,11 +167,9 @@ class Mesh extends EventEmitter {
                 session.buffer = msg.tail;
                 delete msg.tail;
 
-                const payload = JSON.parse(msg.data);
-                this.emit('message', socket.peer, payload);
+                this.emit('message', socket.peer, msg);
             });
 
-        socket.id = id();
         socket.peer = peer;
 
         log.info(`Connecting peer`, socket);
@@ -198,7 +193,7 @@ class Mesh extends EventEmitter {
         const socket = session.socket;
         socket.end();
         socket.removeAllListeners();
-        socket.on('error', function () { });
+        socket.on('error', function () {});
         socket.destroy();
         socket.peer = null;
 
