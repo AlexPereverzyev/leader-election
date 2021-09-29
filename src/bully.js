@@ -7,65 +7,29 @@ class BullyElection {
     }
 
     start() {
-        this.mesh.on('inbound_message', (peer, msg) => {
+        this.mesh.on('message', (peer, message) => {
             const session = this.sessions.get(peer);
-            session.inboundBuf = msg.tail;
-            this.handle(session, msg);
+            this.handle(session, message);
         });
-        this.mesh.on('inbound_started', (peer, socket) => {
-            this.sessions.start(peer).inbound = socket;
+        this.mesh.on('connected', (peer, socket) => {
+            this.sessions.start(peer, socket);
         });
-        this.mesh.on('inbound_ended', (peer) => {
-            if (!peer) {
-                return;
-            }
-            const session = this.sessions.get(peer);
-            if (session) {
-                session.inbound = null;
+        this.mesh.on('disconnected', (peer) => {
+            if (peer) {
+                this.sessions.stop(peer);
             }
         });
-        this.mesh.on('inbound_failed', (peer) => {
-            if (!peer) {
-                return;
+        this.mesh.on('failed', (peer) => {
+            if (peer) {
+                const session = this.sessions.get(peer);
+                if (session) {
+                    session.socket = null;
+                }
             }
-            const session = this.sessions.get(peer);
-            if (session) {
-                session.inbound = null;
-            }
-        });
-
-        this.mesh.on('outbound_message', (peer, msg) => {
-            const session = this.sessions.get(peer);
-            session.outboundBuf = msg.tail;
-            this.handle(session, msg);
-        });
-        this.mesh.on('outbound_started', (peer, socket) => {
-            this.sessions.start(peer).outbound = socket;
-        });
-        this.mesh.on('outbound_ended', (peer) => {
-            if (!peer) {
-                return;
-            }
-            const session = this.sessions.get(peer);
-            if (session) {
-                session.outbound = null;
-            }
-        });
-        this.mesh.on('outbound_failed', (peer) => {
-            if (!peer) {
-                return;
-            }
-            const session = this.sessions.get(peer);
-            if (session) {
-                session.outbound = null;
-            }
-        });
-        this.mesh.on('peer_disconnected', (peer) => {
-            this.sessions.stop(peer);
         });
     }
 
-    handle(session, msg) {
+    handle(session, message) {
         // todo
     }
 }

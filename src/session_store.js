@@ -11,35 +11,30 @@ class SessionStore {
         return peer && peer.name !== undefined ? this.sessions.get(peer.name) : undefined;
     }
 
-    start(peer) {
-        let peerSession = this.sessions.get(peer.name);
-        if (peerSession) {
-            return peerSession;
+    start(peer, socket) {
+        let session = this.sessions.get(peer.name);
+        if (session) {
+            return session;
         }
 
-        peerSession = new Session();
+        session = new Session();
+        session.socket = socket;
 
-        this.sessions.set(peer.name, peerSession);
-        return peerSession;
+        this.sessions.set(peer.name, session);
+        return session;
     }
 
     stop(peer) {
-        if (!peer) {
+        const session = this.sessions.get(peer.name);
+        if (!session) {
             return;
         }
-        const peerSession = this.sessions.get(peer.name);
-        if (!peerSession) {
-            return;
-        }
-        if (peerSession.closed) {
+        if (session.closed) {
             return;
         }
 
+        session.close();
         this.sessions.delete(peer.name);
-
-        peerSession.closed = true;
-        peerSession.inbound = null;
-        peerSession.outbound = null;
     }
 }
 

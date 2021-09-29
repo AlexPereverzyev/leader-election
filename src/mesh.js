@@ -25,12 +25,12 @@ class Mesh extends EventEmitter {
             .on('error', (err) => {
                 log.error(`Peer connection failed: ${err.message}`, socket);
 
-                this.emit('inbound_failed', socket.peer);
+                this.emit('failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () {});
+                    socket.on('error', function () { });
                     socket.destroy();
                     socket.peer = null;
                 });
@@ -38,18 +38,17 @@ class Mesh extends EventEmitter {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                this.emit('inbound_ended', socket.peer);
+                this.emit('disconnected', socket.peer);
 
                 setImmediate(() => {
                     socket.removeAllListeners();
+                    socket.on('error', function () { });
                     socket.peer = null;
                 });
             })
             .on('data', (data) => {
                 const session = this.sessions.get(socket.peer);
-                if (session) {
-                    data = session.inboundBuffer.concat(data);
-                }
+                data = session ? session.buffer.concat(data) : data;
 
                 const msg = Message.parse(data);
                 log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
@@ -59,13 +58,13 @@ class Mesh extends EventEmitter {
                     return;
                 }
                 if (!msg) {
-                    session.inboundBuffer = data;
+                    session.buffer = data;
                     return;
                 }
 
                 // handle hello (connect peer)
-                if (!socket.peer) {
-                    if (!(msg.type === Messages.Hello && msg.data)) {
+                if (msg.type === Messages.Hello) {
+                    if (!msg.data) {
                         socket.end();
                         return;
                     }
@@ -73,23 +72,33 @@ class Mesh extends EventEmitter {
                     const payload = JSON.parse(msg.data);
                     socket.peer = this.peers[payload.name];
 
-                    if (!socket.peer) {
-                        socket.end();
-                        return;
-                    }
-
-                    this.emit('inbound_started', socket.peer, socket);
+                    this.emit('connected', socket.peer, socket);
                 }
 
-                // todo: handle bye (disconnect peer)
+                // handle bye (disconnect peer)
+                if (msg.type === Messages.Bye) {
+                    socket.end();
+                    return;
+                }
 
-                this.emit('inbound_message', socket.peer, msg);
+                // handle data
+                if (!socket.peer) {
+                    socket.end();
+                    return;
+                }
+
+                this.sessions.get(socket.peer).buffer = msg.tail;
+                delete msg.tail;
+
+                const payload = JSON.parse(msg.data);
+                this.emit('message', socket.peer, payload);
             });
     }
 
     connect() {
         for (const peer of this.peers) {
-            if (this.peerName === peer.name) {
+            // initiate connection to leader candidates only
+            if (this.peerName >= peer.name) {
                 continue;
             }
             this.connectPeer(peer);
@@ -112,17 +121,17 @@ class Mesh extends EventEmitter {
                     ),
                 );
 
-                this.emit('outbound_started', socket.peer, socket);
+                this.emit('connected', socket.peer, socket);
             })
             .on('error', (err) => {
                 log.error(`Connecting peer failed: ${err.message}`, socket);
 
-                this.emit('outbound_failed', socket.peer);
+                this.emit('failed', socket.peer);
 
                 socket.end();
                 setImmediate(() => {
                     socket.removeAllListeners();
-                    socket.on('error', function () {});
+                    socket.on('error', function () { });
                     socket.destroy();
                     socket.peer = null;
                 });
@@ -134,10 +143,11 @@ class Mesh extends EventEmitter {
             .on('end', () => {
                 log.info(`Peer disconnected`, socket);
 
-                this.emit('outbound_ended', socket.peer);
+                this.emit('disconnected', socket.peer);
 
                 setImmediate(() => {
                     socket.removeAllListeners();
+                    socket.on('error', function () { });
                     socket.peer = null;
                 });
 
@@ -147,17 +157,21 @@ class Mesh extends EventEmitter {
             })
             .on('data', (data) => {
                 const session = this.sessions.get(socket.peer);
-                data = session.outboundBuf.concat(data);
+                data = session.buffer.concat(data);
 
                 const msg = Message.parse(data);
                 log.info(`Peer message: ${Messages[msg.type]} > ${msg.data}`, socket);
 
                 if (!msg) {
-                    session.outboundBuf = data;
+                    session.buffer = data;
                     return;
                 }
 
-                this.emit('outbound_message', socket.peer, msg);
+                session.buffer = msg.tail;
+                delete msg.tail;
+
+                const payload = JSON.parse(msg.data);
+                this.emit('message', socket.peer, payload);
             });
 
         socket.id = id();
@@ -171,21 +185,24 @@ class Mesh extends EventEmitter {
             if (this.peerName === peer.name) {
                 continue;
             }
-            const session = this.sessions.get(peer);
-            if (!session) {
-                continue;
-            }
-
-            for (const socket of [session.inbound, session.outbound].filter((s) => !!s)) {
-                socket.removeAllListeners();
-                socket.on('error', function () {});
-                socket.end();
-                socket.destroy();
-                socket.peer = null;
-            }
-
-            this.emit('peer_disconnected', peer);
+            this.disconnectPeer(peer);
         }
+    }
+
+    disconnectPeer(peer) {
+        const session = this.sessions.get(peer);
+        if (!session) {
+            return;
+        }
+
+        const socket = session.socket;
+        socket.end();
+        socket.removeAllListeners();
+        socket.on('error', function () { });
+        socket.destroy();
+        socket.peer = null;
+
+        this.emit('disconnected', peer);
     }
 }
 

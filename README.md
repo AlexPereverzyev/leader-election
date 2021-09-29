@@ -5,7 +5,6 @@
 
 Distributed leader election algoritms for Node.js
 
-
 ## Algorithms
 
 - Bully leader election (in progress):
@@ -13,16 +12,15 @@ https://www.cs.colostate.edu/%7Ecs551/CourseNotes/Synchronization/BullyExample.h
 - Token ring leader election (pending):
 https://www.cs.colostate.edu/%7Ecs551/CourseNotes/Synchronization/RingElectExample.html
 
-## Assumtions
+## Pre-requisites
 
 - each peer has unique name (index)
 - each peer knows about the others
-- peers addresses do not change
+- peers addresses are static
 
 ## Simplifications
 
-- protocol is sequential: no message ids and pipelining
-- message parser is not srteaming: re-scans buffer every time new chunk arrives
-- peers maintain two connections: no need to prune the second one
-- no ping-ponging: peer is down when any of the two connections is lost
-- optimistic message validation
+- peers with lower IDs initiate connections to peers with higher IDs
+- peer is considered down when socket is closed or failed (no ping-ponging)
+- message parser is not srteaming: re-scans buffer every time the new chunk arrives
+- optimistic message validation, draining sockets ignored

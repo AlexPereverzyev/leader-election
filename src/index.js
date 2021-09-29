@@ -16,8 +16,6 @@ const peerSessions = new SessionStore();
 const peerMesh = new Mesh(peerName, peerNetwork, peerSessions);
 const peerElection = new BullyElection(peerMesh, peerSessions);
 
-const LeaderElectionDelay = 200;
-
 const server = net
     .createServer((socket) => {
         peerMesh.accept(socket);
@@ -33,7 +31,7 @@ const server = net
         log.info(`Peers known: ${JSON.stringify(peerNetwork)}`, server);
 
         peerMesh.connect();
-        setTimeout(() => peerElection.start(), LeaderElectionDelay);
+        peerElection.start();
     });
 
 server.peer = peerCurrent;

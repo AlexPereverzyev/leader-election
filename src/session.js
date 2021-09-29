@@ -4,55 +4,32 @@ class Session {
     constructor() {
         this.ready = false;
         this.closed = false;
-        this.inboundSocket = null;
-        this.inboundBuffer = Buffer.alloc(0);
-        this.outboundSocket = null;
-        this.outboundBuffer = Buffer.alloc(0);
+        this.sock = null;
+        this.buf = Buffer.alloc(0);
     }
 
-    get inboundSock() {
-        return this.inboundSocket;
+    get socket() {
+        return this.sock;
     }
 
-    set inboundSock(socket) {
-        this.inboundSocket = socket;
-        this.ready = this.inboundSocket && this.outboundSocket;
-    }
-
-    get inboundBuf() {
-        return this.inboundBuffer;
-    }
-
-    set inboundBuf(buffer) {
-        if (buffer) {
-            this.inboundBuffer = buffer;
-        } else {
-            this.inboundBuffer = Buffer.alloc(0);
-        }
-    }
-
-    get outboundSock() {
-        return this.outboundSocket;
-    }
-
-    set outboundSock(socket) {
-        this.outboundSocket = socket;
-        this.ready = this.inboundSocket && this.outboundSocket;
+    set socket(socket) {
+        this.sock = socket;
+        this.ready = !!this.sock;
 
         if (!socket) {
-            this.outboundBuffer = Buffer.alloc(0);
+            this.buf = Buffer.alloc(0);
         }
     }
 
-    get outboundBuf() {
-        return this.outboundBuffer;
+    get buffer() {
+        return this.buf;
     }
 
-    set outboundBuf(buffer) {
-        if (buffer) {
-            this.outboundBuffer = buffer;
+    set buffer(value) {
+        if (value) {
+            this.buf = value;
         } else {
-            this.outboundBuffer = Buffer.alloc(0);
+            this.buf = Buffer.alloc(0);
         }
     }
 
@@ -60,13 +37,15 @@ class Session {
         if (!this.ready) {
             return false;
         }
-        if (this.inboundSocket && this.inboundSocket.writeable) {
-            this.inboundSocket.write(msg);
-            return;
+        if (this.sock && this.sock.writeable) {
+            return this.sock.write(msg);
         }
-        if (this.outboundSocket && this.outboundSocket.writeable) {
-            this.outboundSocket.write(msg);
-        }
+        return false;
+    }
+
+    close() {
+        this.socket = null;
+        this.closed = true;
     }
 }
 
