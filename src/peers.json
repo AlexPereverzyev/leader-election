@@ -6,5 +6,9 @@
   {
     "name": 1,
     "address": "localhost:3001"
+  },
+  {
+    "name": 2,
+    "address": "localhost:3002"
   }
 ]

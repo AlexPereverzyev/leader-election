@@ -34,6 +34,7 @@ class BullyElection {
 
     handleConnected(peer, socket) {
         this.sessions.start(peer, socket);
+        // todo: do not trigger election if joining network
         if (this.leaderName < peer.name) {
             this.election();
         }
@@ -61,6 +62,11 @@ class BullyElection {
     }
 
     election() {
+        if (this.leaderName === null) {
+            log.info(`Election in progress`);
+            return;
+        }
+
         this.leaderName = null;
         log.info(`Starting election`);
 
@@ -71,9 +77,9 @@ class BullyElection {
                 continue;
             }
 
-            log.info(`Nominating`, session.peer);
+            log.info(`Nominating ${++count}`, session.peer);
+
             session.send(Message.build(Messages.Election));
-            count++;
         }
 
         if (count) {

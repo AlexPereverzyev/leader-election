@@ -45,6 +45,8 @@ class Mesh extends EventEmitter {
                 });
             })
             .on('data', (data) => {
+                log.debug(`Data chunk received: ${data.length}`, socket.peer);
+
                 const session = this.sessions.get(socket.peer);
                 data = session ? Buffer.concat([session.buffer, data]) : data;
 
@@ -71,25 +73,32 @@ class Mesh extends EventEmitter {
                     socket.peer = this.peers[payload.name];
 
                     this.emit('connected', socket.peer, socket);
-                    return;
                 }
 
                 // handle bye (disconnect peer)
-                if (msg.type === Messages.Bye) {
+                else if (msg.type === Messages.Bye) {
                     socket.end();
                     return;
                 }
 
-                if (!socket.peer) {
-                    socket.end();
-                    return;
+                // handle election
+                else {
+                    if (!socket.peer) {
+                        socket.end();
+                        return;
+                    }
+
+                    this.emit('message', socket.peer, msg);
                 }
 
                 this.sessions.get(socket.peer).buffer = msg.tail;
-                delete msg.tail;
 
-                this.emit('message', socket.peer, msg);
-            });
+                // try parse next message
+                if (msg.tail) {
+                    setImmediate(() => socket.emit('data', Buffer.alloc(0)));
+                }
+            })
+            .setNoDelay(true);
     }
 
     connect() {
@@ -112,13 +121,11 @@ class Mesh extends EventEmitter {
                     Message.build(
                         Messages.Hello,
                         JSON.stringify({
-                            id: socket.id,
                             name: this.peerName,
                         }),
                     ),
+                    () => this.emit('connected', socket.peer, socket),
                 );
-
-                this.emit('connected', socket.peer, socket);
             })
             .on('error', (err) => {
                 log.error(`Connecting peer failed: ${err.message.substr(0, 64)}`, socket);
@@ -164,11 +171,16 @@ class Mesh extends EventEmitter {
                     return;
                 }
 
-                session.buffer = msg.tail;
-                delete msg.tail;
-
                 this.emit('message', socket.peer, msg);
-            });
+
+                session.buffer = msg.tail;
+
+                // try parse next message
+                if (msg.tail) {
+                    setImmediate(() => socket.emit('data', Buffer.alloc(0)));
+                }
+            })
+            .setNoDelay(true);
 
         socket.peer = peer;
 

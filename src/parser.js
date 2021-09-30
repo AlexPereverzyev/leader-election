@@ -17,6 +17,7 @@ class Message {
 
             if (!type) {
                 type = buffer.readUInt8(l);
+                l = i + 1;
                 if (!(type in Messages)) {
                     type = null;
                     break;
@@ -24,7 +25,6 @@ class Message {
                 if (!(hasData = type === Messages.Data || type === Messages.Hello)) {
                     break;
                 }
-                l = i + 1;
                 continue;
             }
 
@@ -56,7 +56,7 @@ class Message {
 
     static build(type, data = null) {
         const length = 2 + (data ? 5 + data.length : 0);
-        const buffer = Buffer.allocUnsafe(length);
+        const buffer = Buffer.alloc(length);
 
         buffer.writeUInt8(type, 0);
         buffer.writeUInt8(SEP, 1);
