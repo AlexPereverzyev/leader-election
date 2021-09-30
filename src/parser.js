@@ -22,7 +22,7 @@ class Message {
                     type = null;
                     break;
                 }
-                if (!(hasData = type === Messages.Data || type === Messages.Hello)) {
+                if (!(hasData = type === Messages.TakeOver || type === Messages.Hello)) {
                     break;
                 }
                 continue;
@@ -75,8 +75,8 @@ const Messages = {
     Hello: 1,
     Bye: 2,
     Election: 11,
-    Leader: 12,
-    Data: 21,
+    TakeOver: 12,
+    Leader: 13,
 };
 
 Object.keys(Messages).forEach((k) => (Messages[Messages[k]] = k));

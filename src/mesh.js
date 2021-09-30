@@ -47,7 +47,7 @@ class Mesh extends EventEmitter {
             .on('data', (data) => {
                 log.debug(`Data chunk received: ${data.length}`, socket.peer);
 
-                const session = this.sessions.get(socket.peer);
+                let session = this.sessions.get(socket.peer);
                 data = session ? Buffer.concat([session.buffer, data]) : data;
 
                 const msg = Message.parse(data);
@@ -91,10 +91,11 @@ class Mesh extends EventEmitter {
                     this.emit('message', socket.peer, msg);
                 }
 
-                this.sessions.get(socket.peer).buffer = msg.tail;
-
                 // try parse next message
-                if (msg.tail) {
+                session = this.sessions.get(socket.peer);
+                session.buffer = msg.tail;
+
+                if (session.buffer.length) {
                     setImmediate(() => socket.emit('data', Buffer.alloc(0)));
                 }
             })
@@ -160,23 +161,34 @@ class Mesh extends EventEmitter {
                 }, PeerReconnectDelay);
             })
             .on('data', (data) => {
+                log.debug(`Data chunk received: ${data.length}`, socket.peer);
+
                 const session = this.sessions.get(socket.peer);
                 data = Buffer.concat([session.buffer, data]);
 
                 const msg = Message.parse(data);
-                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data || ''}`, socket);
-
                 if (!msg) {
                     session.buffer = data;
                     return;
                 }
 
-                this.emit('message', socket.peer, msg);
+                log.info(`Peer message: ${Messages[msg.type]} > ${msg.data || ''}`, socket);
 
-                session.buffer = msg.tail;
+                // handle bye (disconnect peer)
+                if (msg.type === Messages.Bye) {
+                    socket.end();
+                    return;
+                }
+
+                // handle election
+                else {
+                    this.emit('message', socket.peer, msg);
+                }
 
                 // try parse next message
-                if (msg.tail) {
+                session.buffer = msg.tail;
+
+                if (session.buffer.length) {
                     setImmediate(() => socket.emit('data', Buffer.alloc(0)));
                 }
             })

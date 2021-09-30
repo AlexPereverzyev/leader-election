@@ -9,14 +9,14 @@ describe('MessageParser', () => {
             const data = Buffer.from('test');
             const length = Buffer.allocUnsafe(4);
             length.writeUInt32LE(data.length);
-            const msg = Buffer.from([Messages.Data, Separator, ...length, Separator, ...data]);
+            const msg = Buffer.from([Messages.Hello, Separator, ...length, Separator, ...data]);
 
             // Act
             const result = Message.parse(msg);
 
             // Assert
             expect(result).is.not.null;
-            expect(result.type).is.equal(Messages.Data);
+            expect(result.type).is.equal(Messages.Hello);
             expect(result.data).is.equal('test');
         });
     });
@@ -27,10 +27,10 @@ describe('MessageParser', () => {
             const data = Buffer.from('test');
             const length = Buffer.allocUnsafe(4);
             length.writeUInt32LE(data.length);
-            const msg = Buffer.from([Messages.Data, Separator, ...length, Separator, ...data]);
+            const msg = Buffer.from([Messages.Hello, Separator, ...length, Separator, ...data]);
 
             // Act
-            const result = Message.build(Messages.Data, 'test');
+            const result = Message.build(Messages.Hello, 'test');
 
             // Assert
             expect(result).is.instanceOf(Buffer);
