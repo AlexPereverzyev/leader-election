@@ -92,14 +92,19 @@ class BullyElection {
     }
 
     handleMessage(peer, msg) {
-        if (msg.type === this.confirms.get(peer.name)) {
+        if (msg.type === Messages.TakeOver) {
             const payload = JSON.parse(msg.data);
+
+            // accept already elected leader
             if (payload.leaderName) {
                 this.clearElection();
                 this.leaderName = payload.leaderName;
                 this.lastElection = timestamp();
                 log.info(`Leader already elected: ${this.leaderName}`, peer);
-            } else {
+            }
+
+            // resolve election confirmation
+            else if (msg.type === this.confirms.get(peer.name)) {
                 this.clearElection(false);
                 this.confirms.delete(peer.name);
                 log.info(`Leader taking over`, peer);
@@ -107,15 +112,20 @@ class BullyElection {
             return;
         }
         if (msg.type === Messages.Election) {
-            // do not propagate if the leader is already elected
+            // check whether there is a valid leader elected
             let leaderName = null;
             if (this.leaderName > peer.name && this.lastElection) {
                 leaderName = this.leaderName;
             }
+
+            // confirm election round
             const session = this.sessions.get(peer);
             if (!session.send(Message.build(Messages.TakeOver, JSON.stringify({ leaderName })))) {
                 log.warn(`Failed to take over`, peer);
-            } else {
+            }
+
+            // do not propagate if the leader is already elected
+            if (!leaderName) {
                 this.election(peer);
             }
             return;
