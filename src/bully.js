@@ -4,7 +4,7 @@ const { current: log } = require('./logger');
 const { timestamp } = require('./utils');
 const { Messages, Message } = require('./parser');
 
-const ElectionTakeOverTimeout = 100; // msec
+const ElectionConfirmTimeout = 100; // msec
 const ElectionTimeout = 200; // msec
 
 class BullyElection {
@@ -18,14 +18,15 @@ class BullyElection {
     }
 
     start() {
+        this.peers = this.mesh.peers;
         this.peerName = this.mesh.peerName;
         this.leaderName = this.peerName;
-        this.mesh.on('connecting', (peers, callback) => this.handleConnecting(peers, callback));
-        this.mesh.on('reconnecting', (peer, callback) => this.handleReconnecting(peer, callback));
-        this.mesh.on('connected', (peer, socket) => this.handleConnected(peer, socket));
-        this.mesh.on('disconnected', (peer) => this.handleFailed(peer)); // for testing only
         this.mesh.on('failed', (peer) => this.handleFailed(peer));
         this.mesh.on('message', (peer, msg) => this.handleMessage(peer, msg));
+        this.mesh.on('connected', (peer, socket) => this.handleConnected(peer, socket));
+        this.mesh.on('disconnected', (peer) => this.handleFailed(peer)); // for testing only
+        this.mesh.on('connecting', (callback) => this.handleConnecting(callback));
+        this.mesh.on('reconnecting', (peer, callback) => this.handleReconnecting(peer, callback));
     }
 
     election(peer) {
@@ -50,7 +51,7 @@ class BullyElection {
             session.send(Message.build(Messages.Election));
 
             // expect election confirmation
-            this.confirms.set(session.peer.name, Messages.TakeOver);
+            this.confirms.set(session.peer.name, Messages.Confirm);
         }
 
         if (count) {
@@ -58,7 +59,7 @@ class BullyElection {
                 // become a leader if others have not confirmed the election
                 this.clearElection();
                 this.lead();
-            }, ElectionTakeOverTimeout);
+            }, ElectionConfirmTimeout);
             this.electionTimeout = setTimeout(() => {
                 // re-start election if it is expired
                 log.warn(`Election is expired, re-starting`, peer);
@@ -71,6 +72,21 @@ class BullyElection {
 
         // become a leader if there are no peers with higher ID
         this.lead();
+    }
+
+    clearElection(finish = true) {
+        if (this.confirmsTimeout) {
+            clearTimeout(this.confirmsTimeout);
+            this.confirmsTimeout = null;
+        }
+        if (this.electionTimeout && finish) {
+            clearTimeout(this.electionTimeout);
+            this.electionTimeout = null;
+        }
+        if (this.confirms.size && finish) {
+            log.warn(`Leaders not participating: ${Array.from(this.confirms.keys())}`);
+            this.confirms.clear();
+        }
     }
 
     lead() {
@@ -93,7 +109,7 @@ class BullyElection {
     }
 
     handleMessage(peer, msg) {
-        if (msg.type === Messages.TakeOver) {
+        if (msg.type === Messages.Confirm) {
             const payload = JSON.parse(msg.data);
 
             // accept already elected leader
@@ -121,7 +137,7 @@ class BullyElection {
 
             // confirm election round
             const session = this.sessions.get(peer);
-            if (!session.send(Message.build(Messages.TakeOver, JSON.stringify({ leaderName })))) {
+            if (!session.send(Message.build(Messages.Confirm, JSON.stringify({ leaderName })))) {
                 log.warn(`Failed to take over`, peer);
             }
 
@@ -141,14 +157,17 @@ class BullyElection {
         log.warn(`Unexpected message: ${JSON.stringify(msg)}`, peer);
     }
 
-    handleConnecting(peers, callback) {
+    handleConnecting(callback) {
         // connect to potential leaders only
-        callback(peers.filter((p) => p.name > this.peerName));
+        callback(
+            null,
+            this.peers.filter((p) => p.name > this.peerName),
+        );
     }
 
     handleReconnecting(peer, callback) {
         // reconnect to the same peer
-        callback(peer);
+        callback(null, peer);
     }
 
     handleConnected(peer, socket) {
@@ -176,21 +195,6 @@ class BullyElection {
             if (this.leaderName === peer.name) {
                 this.election(peer);
             }
-        }
-    }
-
-    clearElection(finish = true) {
-        if (this.confirmsTimeout) {
-            clearTimeout(this.confirmsTimeout);
-            this.confirmsTimeout = null;
-        }
-        if (this.electionTimeout && finish) {
-            clearTimeout(this.electionTimeout);
-            this.electionTimeout = null;
-        }
-        if (this.confirms.size && finish) {
-            log.warn(`Leaders not participating: ${Array.from(this.confirms.keys())}`);
-            this.confirms.clear();
         }
     }
 }

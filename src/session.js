@@ -17,6 +17,11 @@ class Session {
         this.sock = socket;
         this.ready = !!this.sock;
         this.buf = Buffer.alloc(0);
+
+        if (this.sock) {
+            this.incoming = this.sock.incoming;
+            this.outgoing = this.sock.outgoing;
+        }
     }
 
     get buffer() {
@@ -31,12 +36,12 @@ class Session {
         }
     }
 
-    send(msg) {
+    send(msg, callback = () => {}) {
         if (!this.ready) {
             return false;
         }
         if (this.sock && this.sock.writable) {
-            return this.sock.write(msg);
+            return this.sock.write(msg, callback);
         }
         return false;
     }

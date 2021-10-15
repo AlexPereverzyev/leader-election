@@ -22,7 +22,7 @@ class Message {
                     type = null;
                     break;
                 }
-                if (!(hasData = type === Messages.TakeOver || type === Messages.Hello)) {
+                if (!(hasData = type === Messages.Confirm || type === Messages.Hello)) {
                     break;
                 }
                 continue;
@@ -74,8 +74,9 @@ class Message {
 const Messages = {
     Hello: 1,
     Bye: 2,
+    Reconnect: 3,
     Election: 11,
-    TakeOver: 12,
+    Confirm: 12,
     Leader: 13,
 };
 

@@ -71,6 +71,7 @@ class Mesh extends EventEmitter {
 
                     const payload = JSON.parse(msg.data);
                     socket.peer = this.peers[payload.name];
+                    socket.incoming = true;
 
                     this.emit('connected', socket.peer, socket);
                 }
@@ -103,7 +104,7 @@ class Mesh extends EventEmitter {
     }
 
     connect() {
-        this.emit('connecting', this.peers, (ps) => ps.forEach((p) => this.connectPeer(p)));
+        this.emit('connecting', (_, ps) => ps.forEach((p) => this.connectPeer(p)));
     }
 
     connectPeer(peer) {
@@ -112,6 +113,7 @@ class Mesh extends EventEmitter {
             .createConnection(address[1], address[0], () => {
                 log.info(`Connected peer`, socket);
 
+                socket.outgoing = true;
                 socket.write(
                     Message.build(
                         Messages.Hello,
@@ -136,7 +138,7 @@ class Mesh extends EventEmitter {
                 });
 
                 setTimeout(() => {
-                    this.emit('reconnecting', peer, (p) => this.connectPeer(p));
+                    this.emit('reconnecting', peer, (_, p) => this.connectPeer(p[0]));
                 }, PeerReconnectDelay);
             })
             .on('end', () => {
@@ -152,7 +154,7 @@ class Mesh extends EventEmitter {
 
                 // for testing only
                 setTimeout(() => {
-                    this.emit('reconnecting', peer, (p) => this.connectPeer(p));
+                    this.emit('reconnecting', peer, (_, p) => this.connectPeer(p[0]));
                 }, PeerReconnectDelay);
             })
             .on('data', (data) => {
