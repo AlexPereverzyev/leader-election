@@ -103,13 +103,7 @@ class Mesh extends EventEmitter {
     }
 
     connect() {
-        for (const peer of this.peers) {
-            // initiate connection to leader candidates only
-            if (this.peerName >= peer.name) {
-                continue;
-            }
-            this.connectPeer(peer);
-        }
+        this.emit('connecting', this.peers, (ps) => ps.forEach((p) => this.connectPeer(p)));
     }
 
     connectPeer(peer) {
@@ -142,7 +136,7 @@ class Mesh extends EventEmitter {
                 });
 
                 setTimeout(() => {
-                    this.connectPeer(peer);
+                    this.emit('reconnecting', peer, (p) => this.connectPeer(p));
                 }, PeerReconnectDelay);
             })
             .on('end', () => {
@@ -156,8 +150,9 @@ class Mesh extends EventEmitter {
                     socket.peer = null;
                 });
 
+                // for testing only
                 setTimeout(() => {
-                    this.connectPeer(peer);
+                    this.emit('reconnecting', peer, (p) => this.connectPeer(p));
                 }, PeerReconnectDelay);
             })
             .on('data', (data) => {

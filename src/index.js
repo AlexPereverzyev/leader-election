@@ -4,17 +4,23 @@ const net = require('net');
 
 const { current: log } = require('./logger');
 const { Mesh } = require('./mesh');
-const { BullyElection } = require('./bully');
 const { SessionStore } = require('./session_store');
+const { BullyElection } = require('./bully');
+const { TokenRingElection } = require('./token_ring');
 
 const peerName = parseInt(process.argv[2] || 0);
 const peerNetwork = require('./peers.json');
 const peerCurrent = peerNetwork[peerName];
 const peerAddress = peerCurrent.address.split(':');
-
 const peerSessions = new SessionStore();
 const peerMesh = new Mesh(peerName, peerNetwork, peerSessions);
-const peerElection = new BullyElection(peerMesh, peerSessions);
+
+const Algorithm = {
+    Bully: 'bully',
+    TokenRing: 'ring',
+};
+const Election = process.argv[2] === Algorithm.TokenRing ? TokenRingElection : BullyElection;
+const peerElection = new Election(peerMesh, peerSessions);
 
 const server = net
     .createServer((socket) => {
@@ -30,8 +36,8 @@ const server = net
         log.info(`Peer started at ${peerAddress}`, server);
         log.info(`Peers known: ${JSON.stringify(peerNetwork.map((p) => p.name))}`, server);
 
-        peerMesh.connect();
         peerElection.start();
+        peerMesh.connect();
     });
 
 server.peer = peerCurrent;

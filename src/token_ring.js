@@ -7,7 +7,7 @@ const { Messages, Message } = require('./parser');
 const ElectionTakeOverTimeout = 100; // msec
 const ElectionTimeout = 200; // msec
 
-class BullyElection {
+class TokenRingElection {
     constructor(mesh, sessions) {
         this.mesh = mesh;
         this.sessions = sessions;
@@ -92,6 +92,7 @@ class BullyElection {
         log.info(`Leader elected: ${this.leaderName}`);
     }
 
+    // todo: implement
     handleMessage(peer, msg) {
         if (msg.type === Messages.TakeOver) {
             const payload = JSON.parse(msg.data);
@@ -142,16 +143,18 @@ class BullyElection {
     }
 
     handleConnecting(peers, callback) {
-        // connect to potential leaders only
+        // todo: connect to the next peer only
         callback(peers.filter((p) => p.name > this.peerName));
     }
 
     handleReconnecting(peer, callback) {
-        // reconnect to the same peer
+        // todo: reconnect to the next peer
         callback(peer);
     }
 
     handleConnected(peer, socket) {
+        // todo: when 2nd peer with lower ID connected, ask the smallest
+        // one to restart connection loop
         this.sessions.start(peer, socket);
         if (this.leaderName < peer.name) {
             this.election(peer);
@@ -195,4 +198,4 @@ class BullyElection {
     }
 }
 
-module.exports.BullyElection = BullyElection;
+module.exports.TokenRingElection = TokenRingElection;
