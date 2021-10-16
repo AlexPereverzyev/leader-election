@@ -20,7 +20,7 @@ class BullyElection {
     start() {
         this.peers = this.mesh.peers;
         this.peerName = this.mesh.peerName;
-        this.leaderName = this.peerName;
+        this.leaderName = this.mesh.peerName;
         this.mesh.on('failed', (peer) => this.handleFailed(peer));
         this.mesh.on('message', (peer, msg) => this.handleMessage(peer, msg));
         this.mesh.on('connected', (peer, socket) => this.handleConnected(peer, socket));

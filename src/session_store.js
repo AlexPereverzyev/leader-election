@@ -29,6 +29,11 @@ class SessionStore {
         return this.sessions.values();
     }
 
+    isReady(peer) {
+        const session = this.get(peer);
+        return session && session.ready;
+    }
+
     get(peer) {
         return peer && peer.name !== undefined ? this.sessions.get(peer.name) : undefined;
     }

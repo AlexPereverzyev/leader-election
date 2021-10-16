@@ -23,7 +23,7 @@ class TokenRingElection {
     start() {
         this.peers = this.mesh.peers;
         this.peerName = this.mesh.peerName;
-        this.leaderName = this.peerName;
+        this.leaderName = this.mesh.peerName;
         this.mesh.on('failed', (peer) => this.handleFailed(peer));
         this.mesh.on('message', (peer, msg) => this.handleMessage(peer, msg));
         this.mesh.on('connected', (peer, socket) => this.handleConnected(peer, socket));
@@ -164,8 +164,7 @@ class TokenRingElection {
         } while (peer.name === this.peerName);
 
         // skip attempt if the next peer is already connected (2 peers network)
-        const session = this.sessions.get(peer);
-        if (session && session.ready) {
+        if (this.sessions.isReady(peer)) {
             log.debug(`Skipping reconnect - session active`, peer);
             setTimeout(() => this.handleReconnecting(peer, callback), PeerReconnectDeferTime);
             return;
@@ -175,27 +174,25 @@ class TokenRingElection {
     }
 
     handleConnected(peer, socket) {
-        // do not keep more than 1 incoming session to form a ring
-        if (socket.incoming) {
-            const incoming = this.sessions.getFirst(Direction.Incoming);
-            if (incoming) {
-                const msg = Message.build(Messages.Reconnect);
+        // re-arrange ring when 2nd incoming connection accepted
+        let incoming;
+        if (socket.incoming && (incoming = this.sessions.getFirst(Direction.Incoming))) {
+            const msg = Message.build(Messages.Reconnect);
 
-                let p = this.peers[this.peerName];
-                while (true) {
-                    // walk left to find the first peer from self that forms a ring
-                    p = this.peers[p.name - 1 < 0 ? this.peers.length - 1 : p.name - 1];
+            let p = this.peers[this.peerName];
+            while (true) {
+                // walk left to find the first peer from self that forms a ring
+                p = this.peers[p.name - 1 < 0 ? this.peers.length - 1 : p.name - 1];
 
-                    if (p.name === incoming.peer.name) {
-                        log.info(`Reconnecting peer`, peer);
-                        socket.write(msg, () => socket.end());
-                        return;
-                    }
-                    if (p.name === peer.name) {
-                        log.info(`Reconnecting peer`, incoming.peer);
-                        incoming.send(msg, () => incoming.socket.end());
-                        break;
-                    }
+                if (p.name === incoming.peer.name) {
+                    log.info(`Reconnecting peer`, peer);
+                    socket.write(msg, () => socket.end());
+                    return;
+                }
+                if (p.name === peer.name) {
+                    log.info(`Reconnecting peer`, incoming.peer);
+                    incoming.send(msg, () => incoming.socket.end());
+                    break;
                 }
             }
         }

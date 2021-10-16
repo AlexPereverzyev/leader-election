@@ -19,7 +19,7 @@ const Algorithm = {
     Bully: 'bully',
     TokenRing: 'ring',
 };
-const Election = process.argv[2] === Algorithm.TokenRing ? TokenRingElection : BullyElection;
+const Election = process.argv[2] !== Algorithm.TokenRing ? TokenRingElection : BullyElection;
 const peerElection = new Election(peerMesh, peerSessions);
 
 const server = net
