@@ -3,8 +3,6 @@
 const { current: log } = require('./logger');
 const { Session } = require('./session');
 
-const SessionsLogInterval = 5 * 1000; // 5 sec
-
 class SessionStore {
     constructor() {
         this.sessions = new Map();
@@ -22,7 +20,7 @@ class SessionStore {
                     active.sort((s1, _) => (s1.incoming ? -1 : 1)).map((s) => s.peer.name),
                 )}`,
             );
-        }, SessionsLogInterval);
+        }, 5 * 1000);
     }
 
     [Symbol.iterator]() {
@@ -44,6 +42,14 @@ class SessionStore {
                 return session;
             }
         }
+    }
+
+    getAny() {
+        let session = this.getFirst(Direction.Outgoing);
+        if (!session) {
+            session = this.getFirst(Direction.Incoming);
+        }
+        return session;
     }
 
     start(peer, socket) {

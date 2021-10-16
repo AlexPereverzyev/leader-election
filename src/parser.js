@@ -22,7 +22,7 @@ class Message {
                     type = null;
                     break;
                 }
-                if (!(hasData = type === Messages.Confirm || type === Messages.Hello)) {
+                if (!(hasData = Message.hasData(type))) {
                     break;
                 }
                 continue;
@@ -69,6 +69,15 @@ class Message {
 
         return buffer;
     }
+
+    static hasData(type) {
+        return (
+            type === Messages.Hello ||
+            type === Messages.Confirm ||
+            type === Messages.ElectionRound ||
+            type === Messages.LeaderRound
+        );
+    }
 }
 
 const Messages = {
@@ -78,6 +87,8 @@ const Messages = {
     Election: 11,
     Confirm: 12,
     Leader: 13,
+    ElectionRound: 15,
+    LeaderRound: 16,
 };
 
 Object.keys(Messages).forEach((k) => (Messages[Messages[k]] = k));

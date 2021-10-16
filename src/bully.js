@@ -74,21 +74,6 @@ class BullyElection {
         this.lead();
     }
 
-    clearElection(finish = true) {
-        if (this.confirmsTimeout) {
-            clearTimeout(this.confirmsTimeout);
-            this.confirmsTimeout = null;
-        }
-        if (this.electionTimeout && finish) {
-            clearTimeout(this.electionTimeout);
-            this.electionTimeout = null;
-        }
-        if (this.confirms.size && finish) {
-            log.warn(`Leaders not participating: ${Array.from(this.confirms.keys())}`);
-            this.confirms.clear();
-        }
-    }
-
     lead() {
         // let all active peers know who is the leader
         // note, not all active peers can be ready by this time,
@@ -106,6 +91,21 @@ class BullyElection {
         this.leaderName = this.peerName;
         this.lastElection = timestamp();
         log.info(`Leader elected: ${this.leaderName}`);
+    }
+
+    clearElection(finish = true) {
+        if (this.confirmsTimeout) {
+            clearTimeout(this.confirmsTimeout);
+            this.confirmsTimeout = null;
+        }
+        if (this.electionTimeout && finish) {
+            clearTimeout(this.electionTimeout);
+            this.electionTimeout = null;
+        }
+        if (this.confirms.size && finish) {
+            log.warn(`Leaders not participating: ${Array.from(this.confirms.keys())}`);
+            this.confirms.clear();
+        }
     }
 
     handleMessage(peer, msg) {
@@ -136,10 +136,9 @@ class BullyElection {
             }
 
             // confirm election round
-            const session = this.sessions.get(peer);
-            if (!session.send(Message.build(Messages.Confirm, JSON.stringify({ leaderName })))) {
-                log.warn(`Failed to take over`, peer);
-            }
+            this.sessions
+                .get(peer)
+                .send(Message.build(Messages.Confirm, JSON.stringify({ leaderName })));
 
             // do not propagate if the leader is already elected
             if (!leaderName) {

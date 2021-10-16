@@ -5,17 +5,14 @@ const { timestamp } = require('./utils');
 const { Messages, Message } = require('./parser');
 const { Direction } = require('./session_store');
 
-const ElectionConfirmTimeout = 100; // msec
 const ElectionTimeout = 200; // msec
-const PeerReconnectDeferTime = 1000; // 1 sec
+const PeerReconnectTime = 1000; // 1 sec
 
 class TokenRingElection {
     constructor(mesh, sessions) {
         this.mesh = mesh;
         this.sessions = sessions;
         this.lastElection = 0;
-        this.confirms = new Map();
-        this.confirmsTimeout = null;
         this.electionTimeout = null;
         this.reconnect = false;
     }
@@ -40,108 +37,108 @@ class TokenRingElection {
     }
 
     election(peer) {
-        // if (this.leaderName === null) {
-        //     log.info(`Election is already in progress`, peer);
-        //     return;
-        // }
-        // log.info(`Starting election`, peer);
-        // this.leaderName = null;
-        // let count = 0;
-        // for (const session of this.sessions) {
-        //     // pre-elect peers with higher IDs
-        //     if (!(session.ready && session.peer.name > this.peerName)) {
-        //         continue;
-        //     }
-        //     log.info(`Nominating ${++count}`, session.peer);
-        //     session.send(Message.build(Messages.Election));
-        //     // expect election confirmation
-        //     this.confirms.set(session.peer.name, Messages.Confirm);
-        // }
-        // if (count) {
-        //     this.confirmsTimeout = setTimeout(() => {
-        //         // become a leader if others have not confirmed the election
-        //         this.clearElection();
-        //         this.lead();
-        //     }, ElectionConfirmTimeout);
-        //     this.electionTimeout = setTimeout(() => {
-        //         // re-start election if it is expired
-        //         log.warn(`Election is expired, re-starting`, peer);
-        //         this.clearElection();
-        //         this.leaderName = this.peerName;
-        //         this.election(peer);
-        //     }, ElectionTimeout);
-        //     return;
-        // }
-        // // become a leader if there are no peers with higher ID
-        // this.lead();
+        if (this.leaderName === null) {
+            log.info(`Election is already in progress`, peer);
+            return;
+        }
+
+        const session = this.sessions.getAny();
+        if (!session) {
+            this.leaderName = this.peerName;
+            log.warn(`Skipping election - no active session`);
+            log.info(`Leader elected: ${this.leaderName}`, peer);
+            return;
+        }
+
+        log.info(`Starting election`, peer);
+
+        this.leaderName = null;
+
+        // send election message to the ring
+        session.send(Message.build(Messages.ElectionRound, JSON.stringify([this.peerName])));
+
+        this.electionTimeout = setTimeout(() => {
+            // re-start election if it is expired
+            log.warn(`Election is expired, re-starting`, peer);
+            this.clearElection();
+            this.leaderName = this.peerName;
+            this.election(peer);
+        }, ElectionTimeout);
     }
 
     clearElection(finish = true) {
-        if (this.confirmsTimeout) {
-            clearTimeout(this.confirmsTimeout);
-            this.confirmsTimeout = null;
-        }
         if (this.electionTimeout && finish) {
             clearTimeout(this.electionTimeout);
             this.electionTimeout = null;
         }
-        if (this.confirms.size && finish) {
-            log.warn(`Leaders not participating: ${Array.from(this.confirms.keys())}`);
-            this.confirms.clear();
-        }
     }
 
-    // todo: implement
     handleMessage(peer, msg) {
         if (msg.type === Messages.Reconnect) {
             this.restart = true;
             return;
         }
-        // if (msg.type === Messages.Confirm) {
-        //     const payload = JSON.parse(msg.data);
+        // try to send to outgoing session first, otherwise to incoming (2 peers network)
+        const session = this.sessions.getAny();
+        if (!session) {
+            log.warn(`Skipping election round - no active session`);
+            return;
+        }
+        if (msg.type === Messages.ElectionRound) {
+            // check whether there is a valid leader elected already
+            if (this.leaderName > peer.name && this.lastElection) {
+                this.sessions
+                    .get(peer)
+                    .send(
+                        Message.build(
+                            Messages.Confirm,
+                            JSON.stringify({ leaderName: this.leaderName }),
+                        ),
+                    );
+                return;
+            }
 
-        //     // accept already elected leader
-        //     if (payload.leaderName) {
-        //         this.clearElection();
-        //         this.leaderName = payload.leaderName;
-        //         this.lastElection = timestamp();
-        //         log.info(`Leader already elected: ${this.leaderName}`, peer);
-        //     }
+            // check round complete and elect a leader
+            const payload = JSON.parse(msg.data);
+            if (payload.includes(this.peerName)) {
+                const leaderName = payload.sort()[payload.length - 1];
+                session.send(
+                    Message.build(
+                        Messages.LeaderRound,
+                        JSON.stringify({ leaderName, peerName: this.peerName }),
+                    ),
+                );
+            }
 
-        //     // resolve election confirmation
-        //     else if (msg.type === this.confirms.get(peer.name)) {
-        //         this.clearElection(false);
-        //         this.confirms.delete(peer.name);
-        //         log.info(`Leader taking over`, peer);
-        //     }
-        //     return;
-        // }
-        // if (msg.type === Messages.Election) {
-        //     // check whether there is a valid leader elected
-        //     let leaderName = null;
-        //     if (this.leaderName > peer.name && this.lastElection) {
-        //         leaderName = this.leaderName;
-        //     }
+            // otherwise - add own token and pass over
+            else {
+                payload.push(this.peerName);
+                session.send(Message.build(Messages.ElectionRound, JSON.stringify(payload)));
+            }
+            return;
+        }
+        if (msg.type === Messages.Confirm) {
+            // accept already elected leader
+            const payload = JSON.parse(msg.data);
+            this.clearElection();
+            this.leaderName = payload.leaderName;
+            this.lastElection = timestamp();
+            log.info(`Leader already elected: ${this.leaderName}`, peer);
+            return;
+        }
+        if (msg.type === Messages.LeaderRound) {
+            const payload = JSON.parse(msg.data);
+            this.clearElection();
+            this.leaderName = payload.leaderName;
+            this.lastElection = timestamp();
+            log.info(`Leader elected: ${this.leaderName}`, peer);
 
-        //     // confirm election round
-        //     const session = this.sessions.get(peer);
-        //     if (!session.send(Message.build(Messages.Confirm, JSON.stringify({ leaderName })))) {
-        //         log.warn(`Failed to take over`, peer);
-        //     }
-
-        //     // do not propagate if the leader is already elected
-        //     if (!leaderName) {
-        //         this.election(peer);
-        //     }
-        //     return;
-        // }
-        // if (msg.type === Messages.Leader) {
-        //     this.clearElection();
-        //     this.leaderName = peer.name;
-        //     this.lastElection = timestamp();
-        //     log.info(`Leader elected: ${this.leaderName}`, peer);
-        //     return;
-        // }
+            // originated from other peer - pass over to the ring
+            if (payload.peerName !== this.peerName) {
+                session.send(Message.build(Messages.LeaderRound, msg.data));
+            }
+            return;
+        }
         log.warn(`Unexpected message: ${JSON.stringify(msg)}`, peer);
     }
 
@@ -166,7 +163,7 @@ class TokenRingElection {
         // skip attempt if the next peer is already connected (2 peers network)
         if (this.sessions.isReady(peer)) {
             log.debug(`Skipping reconnect - session active`, peer);
-            setTimeout(() => this.handleReconnecting(peer, callback), PeerReconnectDeferTime);
+            setTimeout(() => this.handleReconnecting(peer, callback), PeerReconnectTime);
             return;
         }
 
