@@ -1,5 +1,4 @@
 const { expect } = require('chai');
-
 const { Message, Messages, Separator } = require('../src/parser');
 
 describe('MessageParser', () => {
