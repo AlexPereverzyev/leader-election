@@ -3,6 +3,7 @@
 const { current: log } = require('./logger');
 const { timestamp } = require('./utils');
 const { Messages, Message } = require('./parser');
+const { Direction } = require('./session_store');
 
 const ElectionConfirmTimeout = 100; // msec
 const ElectionTimeout = 200; // msec
@@ -162,10 +163,10 @@ class TokenRingElection {
             peer = this.peers[peer.name + 1 === this.peers.length ? 0 : peer.name + 1];
         } while (peer.name === this.peerName);
 
-        // defer reconnect if the next peer is already connected (2 peers network)
+        // skip attempt if the next peer is already connected (2 peers network)
         const session = this.sessions.get(peer);
         if (session && session.ready) {
-            log.debug(`Deferring reconnect`, peer);
+            log.debug(`Skipping reconnect - session active`, peer);
             setTimeout(() => this.handleReconnecting(peer, callback), PeerReconnectDeferTime);
             return;
         }
@@ -174,31 +175,25 @@ class TokenRingElection {
     }
 
     handleConnected(peer, socket) {
+        // do not keep more than 1 incoming session to form a ring
         if (socket.incoming) {
-            let session;
-            for (const s of this.sessions) {
-                if (s.incoming && s.ready) {
-                    session = s;
-                    break;
-                }
-            }
-
-            // do not keep more than 1 incoming session to form a ring
-            if (session) {
+            const incoming = this.sessions.getFirst(Direction.Incoming);
+            if (incoming) {
                 const msg = Message.build(Messages.Reconnect);
-                let i = this.peerName;
-                while (true) {
-                    // walk left to find the next peer from self that forms a ring
-                    const p = this.peers[(i = i - 1 < 0 ? this.peers.length - 1 : i - 1)];
 
-                    if (p.name === session.peer.name) {
+                let p = this.peers[this.peerName];
+                while (true) {
+                    // walk left to find the first peer from self that forms a ring
+                    p = this.peers[p.name - 1 < 0 ? this.peers.length - 1 : p.name - 1];
+
+                    if (p.name === incoming.peer.name) {
                         log.info(`Reconnecting peer`, peer);
                         socket.write(msg, () => socket.end());
                         return;
                     }
                     if (p.name === peer.name) {
-                        log.info(`Reconnecting peer`, session.peer);
-                        session.send(msg, () => session.socket.end());
+                        log.info(`Reconnecting peer`, incoming.peer);
+                        incoming.send(msg, () => incoming.socket.end());
                         break;
                     }
                 }

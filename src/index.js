@@ -6,7 +6,7 @@ const { current: log } = require('./logger');
 const { Mesh } = require('./mesh');
 const { SessionStore } = require('./session_store');
 const { BullyElection } = require('./bully');
-const { TokenRingElection } = require('./token_ring');
+const { TokenRingElection } = require('./ring');
 
 const peerName = parseInt(process.argv[2] || 0);
 const peerNetwork = require('./peers.json');
@@ -19,7 +19,7 @@ const Algorithm = {
     Bully: 'bully',
     TokenRing: 'ring',
 };
-const Election = process.argv[2] !== Algorithm.TokenRing ? TokenRingElection : BullyElection;
+const Election = process.argv[2] === Algorithm.TokenRing ? TokenRingElection : BullyElection;
 const peerElection = new Election(peerMesh, peerSessions);
 
 const server = net

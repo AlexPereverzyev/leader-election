@@ -167,7 +167,7 @@ class BullyElection {
 
     handleReconnecting(peer, callback) {
         // reconnect to the same peer
-        callback(null, peer);
+        callback(null, [peer]);
     }
 
     handleConnected(peer, socket) {

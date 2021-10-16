@@ -33,6 +33,14 @@ class SessionStore {
         return peer && peer.name !== undefined ? this.sessions.get(peer.name) : undefined;
     }
 
+    getFirst(direction = Direction.Incoming) {
+        for (const session of this) {
+            if (session[direction] && session.ready) {
+                return session;
+            }
+        }
+    }
+
     start(peer, socket) {
         let session = this.sessions.get(peer.name);
         if (session) {
@@ -61,4 +69,10 @@ class SessionStore {
     }
 }
 
+const Direction = {
+    Incoming: 'incoming',
+    Outgoing: 'outgoing',
+};
+
 module.exports.SessionStore = SessionStore;
+module.exports.Direction = Direction;
