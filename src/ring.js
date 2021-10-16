@@ -14,7 +14,7 @@ class TokenRingElection {
         this.sessions = sessions;
         this.lastElection = 0;
         this.electionTimeout = null;
-        this.reconnect = false;
+        this.restart = false;
     }
 
     start() {
